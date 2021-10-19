@@ -1,4 +1,4 @@
-import NextAuth from "next-auth";
+import NextAuth, { User } from "next-auth";
 import Providers from "next-auth/providers";
 
 // For more information on each option (and a full list of options) go to
@@ -14,10 +14,43 @@ export default NextAuth({
       clientId: process.env.GOOGLE_ID,
       clientSecret: process.env.GOOGLE_SECRET,
     }),
-    Providers.LinkedIn({
+    // Providers.LinkedIn({
+    //   clientId: process.env.LINKEDIN_ID,
+    //   clientSecret: process.env.LINKEDIN_SECRET,
+    // }),
+    // See https://github.com/nextauthjs/next-auth/discussions/1541
+    // TODO: Create PR to fix provider https://github.com/nextauthjs/next-auth/blob/776b9480da7d0b51bf3b1358be61fa0490126011/src/providers/linkedin.js#L20
+    // TODO: Get image from profilePicture
+    {
+      id: "linkedin",
+      name: "LinkedIn",
+      type: "oauth",
+      version: "2.0",
+      scope: "r_emailaddress r_liteprofile",
+      params: {
+        grant_type: "authorization_code",
+      },
+      accessTokenUrl: "https://www.linkedin.com/oauth/v2/accessToken",
+      authorizationUrl:
+        "https://www.linkedin.com/oauth/v2/authorization?response_type=code",
+      profileUrl:
+        "https://api.linkedin.com/v2/me?projection=(id,localizedFirstName,localizedLastName,profilePicture)",
+      profile: async (profile, tokens) => {
+        const res = await fetch(
+          `https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))&oauth2_access_token=${tokens.access_token}`
+        );
+        const data = await res.json();
+        const email = data.elements[0]["handle~"].emailAddress;
+        return {
+          id: profile.id,
+          name: profile.localizedFirstName + " " + profile.localizedLastName,
+          email,
+          image: null,
+        } as User & { id: string };
+      },
       clientId: process.env.LINKEDIN_ID,
       clientSecret: process.env.LINKEDIN_SECRET,
-    }),
+    },
   ],
   // Database optional. MySQL, Maria DB, Postgres and MongoDB are supported.
   // https://next-auth.js.org/configuration/databases
