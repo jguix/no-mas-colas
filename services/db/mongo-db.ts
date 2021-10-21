@@ -1,26 +1,21 @@
 import { MongoClient } from "mongodb";
 import { User } from "next-auth";
-import { DB } from "./db";
+import { DB, DBTables } from "./db";
 
 export class MongoDB implements DB {
-  static instance = null;
   client = null;
-
-  static getInstance() {
-    if (!MongoDB.instance) {
-      MongoDB.instance = new MongoDB();
-    }
-    return MongoDB.instance;
-  }
 
   async saveUser(user: User) {
     const db = await this.getDB();
     const existingUser = await db
-      .collection("users")
+      .collection(DBTables.users)
       .findOne({ email: user.email });
 
-    if (!existingUser) {
-      await db.collection("users").insertOne({
+    if (existingUser) {
+      console.log(`User ${user.email} already exists`);
+    } else {
+      console.log(`Creating new user ${user.email}`);
+      await db.collection(DBTables.users).insertOne({
         email: user.email,
         name: user.name,
         image: user.image,
@@ -30,7 +25,7 @@ export class MongoDB implements DB {
 
   private async getDB() {
     const client = await this.connectToDatabase();
-    return client.db("my-desk");
+    return client.db(process.env.MONGODB_DBNAME);
   }
 
   private async connectToDatabase() {

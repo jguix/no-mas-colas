@@ -1,5 +1,6 @@
 import NextAuth, { User } from "next-auth";
 import Providers from "next-auth/providers";
+import { DBFactory } from "../../../services/db/db.factory";
 import { MongoDB } from "../../../services/db/mongo-db";
 
 // For more information on each option (and a full list of options) go to
@@ -113,7 +114,7 @@ export default NextAuth({
   // https://next-auth.js.org/configuration/callbacks
   callbacks: {
     async signIn(user, account, profile) {
-      await MongoDB.getInstance().saveUser(user);
+      await DBFactory.getInstance().saveUser(user);
       return true;
     },
     // async redirect(url, baseUrl) { return baseUrl },
