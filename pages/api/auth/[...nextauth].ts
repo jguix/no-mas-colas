@@ -1,7 +1,7 @@
 import NextAuth, { User } from "next-auth";
 import Providers from "next-auth/providers";
+import { verifyPassword } from "../../../services/auth/auth";
 import { DBFactory } from "../../../services/db/db.factory";
-import { MongoDB } from "../../../services/db/mongo-db";
 
 // For more information on each option (and a full list of options) go to
 // https://next-auth.js.org/configuration/options
@@ -53,6 +53,35 @@ export default NextAuth({
       clientId: process.env.LINKEDIN_ID,
       clientSecret: process.env.LINKEDIN_SECRET,
     },
+    Providers.Credentials({
+      credentials: {
+        email: {
+          label: "Email",
+          type: "text",
+          placeholder: "name@example.com",
+        },
+        password: {
+          label: "Password",
+          type: "password",
+          placeholder: "password",
+        },
+      },
+      async authorize(credentials) {
+        const { email, password } = credentials;
+
+        const user = await DBFactory.getInstance().findUser(email);
+
+        if (!user) {
+          throw new Error("User not found");
+        }
+
+        if (!verifyPassword(password, user.hashedPassword)) {
+          throw new Error("Incorrect password");
+        }
+
+        return user;
+      },
+    }),
   ],
   // Database optional. MySQL, Maria DB, Postgres and MongoDB are supported.
   // https://next-auth.js.org/configuration/databases
@@ -114,7 +143,16 @@ export default NextAuth({
   // https://next-auth.js.org/configuration/callbacks
   callbacks: {
     async signIn(user, account, profile) {
-      await DBFactory.getInstance().saveUser(user);
+      const db = DBFactory.getInstance();
+      const existingUser = await db.findUser(user.email);
+
+      if (existingUser) {
+        console.log(`User ${user.email} already exists`);
+        return true;
+      }
+
+      console.log(`Creating new user ${user.email}`);
+      await db.saveUser(user);
       return true;
     },
     // async redirect(url, baseUrl) { return baseUrl },

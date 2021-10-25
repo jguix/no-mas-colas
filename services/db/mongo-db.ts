@@ -1,26 +1,26 @@
 import { MongoClient } from "mongodb";
 import { User } from "next-auth";
-import { DB, DBTables } from "./db";
+import { DB, DBTables, DBUser } from "./db";
 
 export class MongoDB implements DB {
   client = null;
 
-  async saveUser(user: User) {
+  async saveUser(user: DBUser) {
     const db = await this.getDB();
-    const existingUser = await db
-      .collection(DBTables.users)
-      .findOne({ email: user.email });
+    await db.collection(DBTables.users).insertOne({
+      email: user.email,
+      name: user.name,
+      image: user.image,
+      hashedPassword: user.hashedPassword,
+    });
+  }
 
-    if (existingUser) {
-      console.log(`User ${user.email} already exists`);
-    } else {
-      console.log(`Creating new user ${user.email}`);
-      await db.collection(DBTables.users).insertOne({
-        email: user.email,
-        name: user.name,
-        image: user.image,
-      });
-    }
+  async findUser(email: string) {
+    const db = await this.getDB();
+    const user = await db.collection(DBTables.users).findOne({ email });
+
+    if (!user) console.log("User not found");
+    return user;
   }
 
   private async getDB() {
